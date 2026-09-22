@@ -1,0 +1,16 @@
+openapi: 3.0.0
+info:
+  title: Club Reservas API
+  description: |-
+    API REST para gestionar canchas, socios y reservas del Club Deportivo Encuentro.
+
+    Todos los endpoints cuelgan del prefijo `/club_reservas_api`.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:5000/club_reservas_api
+
+paths: {}
+
+components:
+  schemas: {}

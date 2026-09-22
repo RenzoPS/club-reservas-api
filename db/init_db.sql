@@ -1,0 +1,7 @@
+-- Esquema y datos iniciales de la base `club`.
+--
+-- docker-compose monta este archivo en /docker-entrypoint-initdb.d, asi que
+-- se ejecuta solo la primera vez que se crea el contenedor.
+--
+-- Para re-ejecutarlo despues de modificarlo:
+--     docker compose down -v && docker compose up -d
