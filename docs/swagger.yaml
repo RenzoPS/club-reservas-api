@@ -5,12 +5,157 @@ info:
     API REST para gestionar canchas, socios y reservas del Club Deportivo Encuentro.
 
     Todos los endpoints cuelgan del prefijo `/club_reservas_api`.
+
+    Las fechas y horas se envian en formato ISO 8601 con desplazamiento fijo
+    GMT-3 (`YYYY-MM-DDTHH:MM:SS.ffffff-03:00`) y se interpretan sin conversion
+    de zona horaria.
+
+    Los importes se expresan como enteros en centavos: `1000000` es $10.000,00.
   version: 1.0.0
 
 servers:
   - url: http://localhost:5000/club_reservas_api
 
+# =============================================================
+# Cada uno documenta los endpoints de su recurso aca.
+# Para evitar conflictos, agregar la seccion propia al final de
+# `paths`, sin tocar las de los demas.
+# =============================================================
 paths: {}
 
 components:
-  schemas: {}
+  schemas:
+
+    # ---------- Errores ----------
+    Errores:
+      type: object
+      properties:
+        errors:
+          type: array
+          description: "Listado de errores"
+          items:
+            $ref: '#/components/schemas/Error'
+    Error:
+      type: object
+      description: "Estructura de datos que contiene los detalles del error"
+      properties:
+        code:
+          type: string
+          description: "Codigo de error alfanumerico unico legible por humanos"
+          example: "cancha.not.found"
+        message:
+          type: string
+          description: "Breve resumen del problema reportado"
+          example: "Cancha no encontrada"
+        level:
+          type: string
+          description: "Nivel del problema reportado"
+          example: "error"
+          enum:
+            - info
+            - warning
+            - error
+        description:
+          type: string
+          description: "Descripcion detallada del problema reportado"
+          example: "No existe una cancha con id '99'"
+
+    # ---------- Paginacion ----------
+    Links:
+      type: object
+      description: |-
+        Enlaces de navegacion HATEOAS. `_prev` es null en la primera pagina y
+        `_next` es null en la ultima. Los filtros activos se conservan en los
+        cuatro enlaces.
+      properties:
+        _first:
+          type: string
+          example: "/canchas?_limit=10&_offset=0"
+        _prev:
+          type: string
+          nullable: true
+          example: null
+        _next:
+          type: string
+          nullable: true
+          example: "/canchas?_limit=10&_offset=10"
+        _last:
+          type: string
+          example: "/canchas?_limit=10&_offset=40"
+    Paginacion:
+      type: object
+      description: |-
+        Campos comunes a todas las respuestas de listado. Cada recurso agrega
+        su propio arreglo bajo una clave descriptiva (`canchas`, `socios` o
+        `reservas`).
+      properties:
+        _limit:
+          type: integer
+          description: "Cantidad de resultados por pagina"
+          example: 10
+        _offset:
+          type: integer
+          description: "Cantidad de resultados salteados"
+          example: 0
+        _links:
+          $ref: '#/components/schemas/Links'
+
+  parameters:
+    Limit:
+      name: _limit
+      in: query
+      description: "Cantidad de resultados por pagina"
+      required: false
+      schema:
+        type: integer
+        default: 10
+        minimum: 1
+        maximum: 100
+      example: 10
+    Offset:
+      name: _offset
+      in: query
+      description: "Cantidad de resultados a saltear"
+      required: false
+      schema:
+        type: integer
+        default: 0
+        minimum: 0
+      example: 0
+    Id:
+      name: id
+      in: path
+      description: "Identificador del recurso"
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+      example: 1
+
+  responses:
+    NoContent:
+      description: "No Content"
+    BadRequest:
+      description: "Bad Request"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Errores'
+    NotFound:
+      description: "Not Found"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Errores'
+    Conflict:
+      description: "Conflict"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Errores'
+    InternalServerError:
+      description: "Internal Server Error"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Errores'
