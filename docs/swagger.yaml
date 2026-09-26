@@ -21,10 +21,332 @@ servers:
 # Para evitar conflictos, agregar la seccion propia al final de
 # `paths`, sin tocar las de los demas.
 # =============================================================
-paths: {}
+paths:
+
+  /canchas:
+    get:
+      summary: "Listar canchas con paginacion"
+      description: |-
+        Los filtros son opcionales y se combinan con criterio AND. La busqueda
+        por nombre es parcial y no distingue mayusculas de minusculas.
+
+        Sin filtros se incluyen tanto las canchas activas como las inactivas.
+      tags:
+        - Canchas
+      parameters:
+        - name: id_deporte
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
+        - name: nombre
+          in: query
+          description: "Busqueda parcial, sin distinguir mayusculas"
+          required: false
+          schema:
+            type: string
+          example: "futbol"
+        - name: techada
+          in: query
+          required: false
+          schema:
+            type: boolean
+          example: true
+        - name: activa
+          in: query
+          required: false
+          schema:
+            type: boolean
+          example: true
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: "Listado de canchas"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CanchasPaginadas'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: "Crear una cancha"
+      description: |-
+        El nombre no puede quedar vacio despues de quitar los espacios de sus
+        extremos, el deporte debe existir y el precio debe ser un entero
+        positivo expresado en centavos.
+      tags:
+        - Canchas
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NuevaCancha'
+      responses:
+        '201':
+          description: "Cancha creada"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cancha'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: "El deporte indicado no existe"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Errores'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /canchas/disponibles:
+    get:
+      summary: "Consultar canchas activas libres durante todo un intervalo"
+      description: |-
+        El intervalo debe cumplir las mismas reglas que una reserva nueva:
+        horas en punto, duracion de una a tres horas, dentro del horario del
+        club (08:00 a 23:00), sin atravesar la medianoche y con inicio
+        posterior al momento actual.
+
+        La consulta informa la disponibilidad de las canchas. La habilitacion
+        del socio y su agenda se validan al crear la reserva.
+
+        Si no hay canchas libres responde 200 con un arreglo vacio.
+      tags:
+        - Canchas
+      parameters:
+        - name: fecha
+          in: query
+          description: "Fecha del intervalo, en formato YYYY-MM-DD"
+          required: true
+          schema:
+            type: string
+            format: date
+          example: "2026-10-15"
+        - name: hora_inicio
+          in: query
+          description: "Hora de inicio, en punto, formato HH:MM"
+          required: true
+          schema:
+            type: string
+          example: "18:00"
+        - name: hora_fin
+          in: query
+          description: "Hora de fin, en punto, formato HH:MM"
+          required: true
+          schema:
+            type: string
+          example: "20:00"
+        - name: id_deporte
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
+        - name: techada
+          in: query
+          required: false
+          schema:
+            type: boolean
+          example: true
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: "Canchas libres durante todo el intervalo"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CanchasPaginadas'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /canchas/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      summary: "Obtener los datos de una cancha"
+      description: |-
+        El estado `activa` no indica que la cancha este libre en todos los
+        horarios.
+      tags:
+        - Canchas
+      responses:
+        '200':
+          description: "Detalle de la cancha"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cancha'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      summary: "Actualizar parcialmente una cancha"
+      description: |-
+        Los campos omitidos conservan su valor y se aplican las validaciones
+        del alta. El deporte asociado no se modifica una vez creada la cancha.
+
+        Cambiar el precio no altera los importes de las reservas existentes,
+        que conservan la tarifa vigente al momento de registrarse.
+      tags:
+        - Canchas
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActualizarCancha'
+      responses:
+        '200':
+          description: "Cancha actualizada"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cancha'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      summary: "Eliminar una cancha"
+      description: |-
+        Solo se elimina si no tiene ninguna reserva asociada, sin importar el
+        estado de esas reservas. Si las tiene, se responde 409 y la cancha
+        puede desactivarse mediante PATCH.
+      tags:
+        - Canchas
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: "La cancha tiene reservas asociadas"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Errores'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
 components:
   schemas:
+
+    # ---------- Canchas ----------
+    Cancha:
+      type: object
+      description: "Datos de una cancha del club"
+      properties:
+        id_cancha:
+          type: integer
+          description: "Identificador de la cancha"
+          example: 1
+        nombre:
+          type: string
+          example: "Cancha 1 - Futbol 5"
+        id_deporte:
+          type: integer
+          description: "Deporte asociado. No se modifica una vez creada la cancha"
+          example: 1
+        precio_hora:
+          type: integer
+          description: "Tarifa por hora en centavos. 1000000 es $10.000,00"
+          minimum: 1
+          example: 1200000
+        techada:
+          type: boolean
+          example: false
+        activa:
+          type: boolean
+          description: "Una cancha activa puede estar ocupada en algunos horarios"
+          example: true
+
+    NuevaCancha:
+      type: object
+      description: "Datos requeridos para crear una cancha"
+      required:
+        - nombre
+        - id_deporte
+        - precio_hora
+      properties:
+        nombre:
+          type: string
+          description: "No puede quedar vacio despues de quitar espacios en sus extremos"
+          example: "Cancha 1 - Futbol 5"
+        id_deporte:
+          type: integer
+          description: "El deporte debe existir"
+          minimum: 1
+          example: 1
+        precio_hora:
+          type: integer
+          description: "Entero positivo, en centavos"
+          minimum: 1
+          example: 1200000
+        techada:
+          type: boolean
+          default: false
+        activa:
+          type: boolean
+          default: true
+
+    ActualizarCancha:
+      type: object
+      description: |-
+        Campos editables de una cancha. Debe enviarse al menos uno.
+        `id_deporte` no es editable y se rechaza como campo desconocido.
+      minProperties: 1
+      properties:
+        nombre:
+          type: string
+          example: "Cancha 1 - Futbol 5"
+        precio_hora:
+          type: integer
+          minimum: 1
+          example: 1500000
+        techada:
+          type: boolean
+          example: true
+        activa:
+          type: boolean
+          example: false
+
+    CanchasPaginadas:
+      type: object
+      description: "Listado de canchas con paginacion y enlaces de navegacion"
+      properties:
+        canchas:
+          type: array
+          items:
+            $ref: '#/components/schemas/Cancha'
+        _limit:
+          type: integer
+          example: 10
+        _offset:
+          type: integer
+          example: 0
+        _links:
+          $ref: '#/components/schemas/Links'
 
     # ---------- Errores ----------
     Errores:

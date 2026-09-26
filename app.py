@@ -4,6 +4,7 @@ import logging
 from flask import Flask, jsonify
 
 from club_reservas.constants import BASE_URL
+from club_reservas.routes.canchas import canchas_bp
 from club_reservas.utils import ErrorAPI, construir_error_api
 
 logging.basicConfig(level=logging.DEBUG, format='%(levelname)s - %(name)s - %(message)s')
@@ -11,10 +12,7 @@ logging.basicConfig(level=logging.DEBUG, format='%(levelname)s - %(name)s - %(me
 app = Flask(__name__)
 app.json.sort_keys = False
 
-# Cada recurso se agrupa en un Blueprint y se registra aca:
-#
-#     from club_reservas.routes.canchas import canchas_bp
-#     app.register_blueprint(canchas_bp, url_prefix=BASE_URL)
+app.register_blueprint(canchas_bp, url_prefix=BASE_URL)
 
 
 @app.errorhandler(ErrorAPI)
