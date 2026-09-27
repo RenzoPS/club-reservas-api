@@ -1,9 +1,7 @@
 import logging
 from . import (
     ejecutar_consulta,
-    ejecutar_escalar,
-    ejecutar_mutacion,
-    listar_paginado,
+    ejecutar_escalar
 )
 
 logger = logging.getLogger(__name__)
@@ -55,7 +53,7 @@ def disponibilidad_cancha(inicio, fin, cancha) -> bool:
     parametros_base = {'inicio': inicio, 'fin': fin, 'cancha': cancha}
     
     query = '''
-    SELECT DISTINCT a.id_cancha FROM club.canchas a
+    SELECT COUNT(a.id_cancha) FROM club.canchas a
 
     LEFT JOIN club.reservas r
     ON a.id_cancha = r.id_cancha
