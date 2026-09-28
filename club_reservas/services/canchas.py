@@ -1,7 +1,6 @@
 import logging
 from ..constants import (
     ERROR_CODE_CANCHA_CON_RESERVAS,
-    ERROR_CODE_CANCHA_NOT_FOUND,
     ERROR_CODE_DEPORTE_NOT_FOUND,
 )
 from ..paginacion import paginar

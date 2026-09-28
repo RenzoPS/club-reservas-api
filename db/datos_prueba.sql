@@ -1,6 +1,11 @@
 
 -- DATOS DE PRUEBA
 
+-- El cliente de linea de comandos de MySQL asume latin1, asi que interpretaria
+-- mal los bytes de los nombres con acento y los guardaria corruptos. SET NAMES
+-- le avisa que este archivo viene en utf8mb4.
+SET NAMES utf8mb4;
+
 INSERT INTO club.socios (nombre, email, activo) VALUES
 ('Alejandro Gómez', 'alejandro.gomez@email.com', TRUE),
 ('María Rodríguez', 'maria.rodriguez@email.com', TRUE),
