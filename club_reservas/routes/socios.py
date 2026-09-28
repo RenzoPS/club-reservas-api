@@ -2,81 +2,62 @@
 
 from flask import Blueprint, request, jsonify
 
+from ..paginacion import leer_parametros_paginacion
 
-from club_reservas.validators.socios import (
+from ..validators.socios import (
     validar_body_post,
-    validar_body_patch
+    validar_body_patch,
+    validar_filtros_listado,
+    validar_id_socio
 )
 
-from club_reservas.services.socios import (
+from ..services.socios import (
     servicio_crear_socio,
     servicio_obtener_socio_por_id,
     servicio_listar_socios,
     servicio_actualizar_socio
 )
 
-socios_bp = Blueprint('socios_bp', __name__)
+socios_bp = Blueprint('socios', __name__)
 
 
 @socios_bp.route('/socios', methods=['GET'])
 def listar_socios_endpoint():
-    
-    nombre = request.args.get('nombre', default=None, type=str)
-    activo = request.args.get('activo', default=None, type=str)
-    
-    
-    limit = request.args.get('Limit', default=10, type=int)
-    offset = request.args.get('Offset', default=0, type=int)
-    
-    resultado = servicio_listar_socios(nombre, activo, limit, offset)
+
+    limit, offset = leer_parametros_paginacion(request.args)
+    filtros = validar_filtros_listado(request.args)
+
+    resultado = servicio_listar_socios(filtros, limit, offset)
     return jsonify(resultado), 200
 
 
 @socios_bp.route('/socios', methods=['POST'])
 def crear_socio_endpoint():
-    datos_recibidos = request.get_json() or {}
-    
-  
-    datos_limpios, error_validacion = validar_body_post(datos_recibidos)
-    if error_validacion:
-        return jsonify({"error": error_validacion}), 400
-        
-   
-    try:
-        nuevo_socio = servicio_crear_socio(datos_limpios)
-        return jsonify(nuevo_socio), 201
-    except ValueError as e:
-        if str(e) == "EMAIL_DUPLICATED":
-            return jsonify({"error": "El correo electrónico ya se encuentra registrado."}), 409
-        return jsonify({"error": "Ocurrió un error inesperado"}), 500
+    datos_recibidos = request.get_json(silent=True)
 
 
-@socios_bp.route('/socios/<int:socio_id>', methods=['GET'])
+    datos_limpios = validar_body_post(datos_recibidos)
+
+
+    nuevo_socio = servicio_crear_socio(datos_limpios)
+    return jsonify(nuevo_socio), 201
+
+
+@socios_bp.route('/socios/<socio_id>', methods=['GET'])
 def obtener_socio_endpoint(socio_id):
-    try:
-        socio = servicio_obtener_socio_por_id(socio_id)
-        return jsonify(socio), 200
-    except KeyError:
-        return jsonify({"error": f"Socio con ID {socio_id} no encontrado."}), 404
+    id_valido = validar_id_socio(socio_id)
+
+    return jsonify(servicio_obtener_socio_por_id(id_valido)), 200
 
 
 
-@socios_bp.route('/socios/<int:socio_id>', methods=['PATCH'])
+@socios_bp.route('/socios/<socio_id>', methods=['PATCH'])
 def actualizar_socio_endpoint(socio_id):
-    datos_recibidos = request.get_json() or {}
-    
-    
-    datos_limpios, error_validacion = validar_body_patch(datos_recibidos)
-    if error_validacion:
-        return jsonify({"error": error_validacion}), 400
-        
-  
-    try:
-        socio_actualizado = servicio_actualizar_socio(socio_id, datos_limpios)
-        return jsonify(socio_actualizado), 200
-    except KeyError:
-        return jsonify({"error": f"Socio con ID {socio_id} no encontrado."}), 404
-    except ValueError as e:
-        if str(e) == "EMAIL_DUPLICATED":
-            return jsonify({"error": "El correo electrónico ya se encuentra registrado en otro usuario."}), 409
-        return jsonify({"error": "Ocurrió un error inesperado"}), 500
+    id_valido = validar_id_socio(socio_id)
+    datos_recibidos = request.get_json(silent=True)
+
+
+    datos_limpios = validar_body_patch(datos_recibidos)
+
+
+    return jsonify(servicio_actualizar_socio(id_valido, datos_limpios)), 200

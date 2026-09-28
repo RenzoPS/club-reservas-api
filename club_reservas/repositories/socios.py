@@ -1,29 +1,26 @@
 
-
-from sqlalchemy import text
-
-from club_reservas.repositories import ejecutar_consulta, ejecutar_mutacion, listar_paginado
+from . import ejecutar_consulta, ejecutar_mutacion, listar_paginado
 
 
 
 def buscar_por_email(email_a_buscar):
     """Busca un socio por su correo en MySQL para validar duplicados."""
-    sql = "SELECT id_socio AS id, nombre, email, activo FROM club.socios WHERE email = :email_param"
+    sql = "SELECT id_socio, nombre, email, activo FROM club.socios WHERE email = :email_param"
     resultados = ejecutar_consulta(sql, {"email_param": email_a_buscar})
-    
+
     if resultados:
-        
+
         socio = resultados[0]
         socio["activo"] = bool(socio["activo"])
         return socio
     return None
 
 
-def buscar_por_id(socio_id):
+def obtener_por_id(socio_id):
     """Busca un socio por su identificador único en MySQL."""
-    sql = "SELECT id_socio AS id, nombre, email, activo FROM club.socios WHERE id_socio = :id_param"
+    sql = "SELECT id_socio, nombre, email, activo FROM club.socios WHERE id_socio = :id_param"
     resultados = ejecutar_consulta(sql, {"id_param": socio_id})
-    
+
     if resultados:
         socio = resultados[0]
         socio["activo"] = bool(socio["activo"])
@@ -34,9 +31,9 @@ def buscar_por_id(socio_id):
 def listar_socios(nombre=None, activo=None, limit=10, offset=0):
     """
     Filtra y pagina la lista de socios.
-    Devuelve únicamente la lista de filas encontradas.
+    Devuelve las filas de la página y el total sin paginar.
     """
-  
+
     filas, total = listar_paginado(
         tabla='club.socios',
         filtros={
@@ -47,11 +44,11 @@ def listar_socios(nombre=None, activo=None, limit=10, offset=0):
         limit=limit,
         offset=offset
     )
-    
+
     for socio in filas:
         socio["activo"] = bool(socio["activo"])
-        
-    return filas
+
+    return filas, total
 
 
 
@@ -69,9 +66,8 @@ def guardar_socio(nuevo_socio):
     
     
     nuevo_id = ejecutar_mutacion(sql, parametros)
-    
-    nuevo_socio["id"] = nuevo_id
-    return nuevo_socio
+
+    return obtener_por_id(nuevo_id)
 
 
 def actualizar_socio(socio_id, datos_nuevos):
@@ -84,9 +80,9 @@ def actualizar_socio(socio_id, datos_nuevos):
         parametros[f"{llave}_param"] = valor
         
     if not partes_sql:
-        return buscar_por_id(socio_id)
-        
+        return obtener_por_id(socio_id)
+
     sql = f"UPDATE club.socios SET {', '.join(partes_sql)} WHERE id_socio = :id"
     ejecutar_mutacion(sql, parametros)
-    
-    return buscar_por_id(socio_id)
+
+    return obtener_por_id(socio_id)
