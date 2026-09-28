@@ -5,6 +5,9 @@ from flask import Flask, jsonify
 
 from club_reservas.constants import BASE_URL
 from club_reservas.routes.canchas import canchas_bp
+from club_reservas.routes.deportes import deportes_bp
+from club_reservas.routes.reservas import reservas_bp
+from club_reservas.routes.socios import socios_bp
 from club_reservas.utils import ErrorAPI, construir_error_api
 
 logging.basicConfig(level=logging.DEBUG, format='%(levelname)s - %(name)s - %(message)s')
@@ -12,7 +15,10 @@ logging.basicConfig(level=logging.DEBUG, format='%(levelname)s - %(name)s - %(me
 app = Flask(__name__)
 app.json.sort_keys = False
 
+app.register_blueprint(deportes_bp, url_prefix=BASE_URL)
 app.register_blueprint(canchas_bp, url_prefix=BASE_URL)
+app.register_blueprint(socios_bp, url_prefix=BASE_URL)
+app.register_blueprint(reservas_bp, url_prefix=BASE_URL)
 
 
 @app.errorhandler(ErrorAPI)

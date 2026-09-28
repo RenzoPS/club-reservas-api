@@ -272,6 +272,316 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  /socios:
+    get:
+      summary: "Listar socios con paginacion"
+      description: |-
+        Los filtros son opcionales y se combinan con criterio AND. La busqueda
+        por nombre es parcial y no distingue mayusculas de minusculas.
+      tags:
+        - Socios
+      parameters:
+        - name: nombre
+          in: query
+          description: "Busqueda parcial, sin distinguir mayusculas"
+          required: false
+          schema:
+            type: string
+          example: "garcia"
+        - name: activo
+          in: query
+          required: false
+          schema:
+            type: boolean
+          example: true
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: "Listado de socios"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SociosPaginados'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: "Registrar un socio"
+      description: |-
+        El nombre no puede quedar vacio y el correo debe tener un formato valido.
+        Se almacena en minusculas y sin espacios en sus extremos.
+
+        El servidor asigna `activo: true`, por lo que el cliente no envia ese campo.
+
+        Un correo ya registrado produce 409, incluso si el socio existente esta
+        inactivo.
+      tags:
+        - Socios
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NuevoSocio'
+      responses:
+        '201':
+          description: "Socio registrado"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Socio'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: "El correo ya esta registrado"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Errores'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /socios/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      summary: "Consultar los datos de un socio"
+      tags:
+        - Socios
+      responses:
+        '200':
+          description: "Detalle del socio"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Socio'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      summary: "Actualizar parcialmente un socio"
+      description: |-
+        Los campos omitidos conservan su valor y se aplican las validaciones del
+        alta, incluida la unicidad del correo.
+
+        No existe un endpoint de eliminacion: la baja es logica, con `activo: false`.
+      tags:
+        - Socios
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActualizarSocio'
+      responses:
+        '200':
+          description: "Socio actualizado"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Socio'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: "El correo pertenece a otro socio"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Errores'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /reservas:
+    get:
+      summary: "Listar reservas con paginacion"
+      description: |-
+        El rango de fechas se aplica al dia de utilizacion de la cancha, con ambos
+        extremos incluidos. Puede enviarse un solo extremo; si se envian los dos,
+        debe cumplirse `fecha_desde <= fecha_hasta`.
+
+        Se permite consultar reservas pasadas.
+      tags:
+        - Reservas
+      parameters:
+        - name: id_cancha
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
+        - name: id_socio
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
+        - name: estado
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [confirmada, cancelada, finalizada]
+          example: "confirmada"
+        - name: fecha_desde
+          in: query
+          description: "Formato YYYY-MM-DD"
+          required: false
+          schema:
+            type: string
+            format: date
+          example: "2026-10-01"
+        - name: fecha_hasta
+          in: query
+          description: "Formato YYYY-MM-DD"
+          required: false
+          schema:
+            type: string
+            format: date
+          example: "2026-10-31"
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: "Listado de reservas"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservasPaginadas'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: "Crear una reserva"
+      description: |-
+        El socio y la cancha deben existir y estar activos. El intervalo debe
+        comenzar y terminar en horas en punto, durar entre una y tres horas,
+        quedar dentro del horario del club (08:00 a 23:00), no atravesar la
+        medianoche y comenzar despues del momento actual.
+
+        No se admiten superposiciones con reservas confirmadas, ni para la cancha
+        ni para el socio, aunque sean en canchas distintas.
+
+        El servidor asigna el estado `confirmada`, conserva la tarifa vigente de
+        la cancha y calcula el total como la cantidad de horas por esa tarifa.
+
+        Si alguna validacion falla, no se guarda la reserva.
+      tags:
+        - Reservas
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NuevaReserva'
+      responses:
+        '201':
+          description: "Reserva creada"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reserva'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: "El socio o la cancha no existen"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Errores'
+        '409':
+          description: "Entidad inactiva o superposicion de horarios"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Errores'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /reservas/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      summary: "Obtener todos los campos de una reserva"
+      description: |-
+        Incluye el estado, la tarifa historica y el importe total.
+      tags:
+        - Reservas
+      responses:
+        '200':
+          description: "Detalle de la reserva"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reserva'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /reservas/{id}/estado:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    put:
+      summary: "Establecer el estado de una reserva"
+      description: |-
+        Transiciones permitidas:
+
+        | Estado actual | Estado solicitado | Condicion |
+        |---------------|-------------------|-----------|
+        | confirmada | cancelada | el horario de inicio todavia no llego |
+        | confirmada | finalizada | se alcanzo o supero el horario de fin |
+        | cancelada | otro estado | no permitido |
+        | finalizada | otro estado | no permitido |
+
+        Repetir el estado actual devuelve exito sin modificar la reserva. Una
+        cancelacion libera el horario pero no elimina el registro.
+      tags:
+        - Reservas
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CambioEstado'
+      responses:
+        '200':
+          description: "Reserva con su estado actual"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reserva'
+        '400':
+          description: "Estado desconocido"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Errores'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: "Transicion no permitida o fuera del momento permitido"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Errores'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
 components:
   schemas:
 
@@ -374,6 +684,168 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Cancha'
+        _limit:
+          type: integer
+          example: 10
+        _offset:
+          type: integer
+          example: 0
+        _links:
+          $ref: '#/components/schemas/Links'
+
+    # ---------- Socios ----------
+    Socio:
+      type: object
+      description: "Persona registrada en el club"
+      properties:
+        id_socio:
+          type: integer
+          example: 1
+        nombre:
+          type: string
+          example: "Alejandro Gomez"
+        email:
+          type: string
+          format: email
+          description: "Unico, almacenado en minusculas y sin espacios"
+          example: "alejandro.gomez@email.com"
+        activo:
+          type: boolean
+          description: "Un socio inactivo no puede registrar nuevas reservas"
+          example: true
+
+    NuevoSocio:
+      type: object
+      description: "Datos requeridos para registrar un socio"
+      required:
+        - nombre
+        - email
+      properties:
+        nombre:
+          type: string
+          description: "No puede quedar vacio despues de quitar espacios en sus extremos"
+          example: "Alejandro Gomez"
+        email:
+          type: string
+          format: email
+          description: "Se almacena en minusculas, sin espacios. Debe ser unico"
+          example: "alejandro.gomez@email.com"
+
+    ActualizarSocio:
+      type: object
+      description: |-
+        Campos editables de un socio. Debe enviarse al menos uno.
+      minProperties: 1
+      properties:
+        nombre:
+          type: string
+          example: "Alejandro Gomez"
+        email:
+          type: string
+          format: email
+          example: "nuevo.correo@email.com"
+        activo:
+          type: boolean
+          example: false
+
+    SociosPaginados:
+      type: object
+      description: "Listado de socios con paginacion y enlaces de navegacion"
+      properties:
+        socios:
+          type: array
+          items:
+            $ref: '#/components/schemas/Socio'
+        _limit:
+          type: integer
+          example: 10
+        _offset:
+          type: integer
+          example: 0
+        _links:
+          $ref: '#/components/schemas/Links'
+
+    # ---------- Reservas ----------
+    Reserva:
+      type: object
+      description: "Asignacion de una cancha a un socio en un intervalo horario"
+      properties:
+        id_reserva:
+          type: integer
+          example: 1
+        id_socio:
+          type: integer
+          example: 1
+        id_cancha:
+          type: integer
+          example: 2
+        fecha_hora_inicio:
+          type: string
+          description: "ISO 8601 con desplazamiento fijo GMT-3 y 6 digitos de fraccion"
+          example: "2026-10-15T18:00:00.000000-03:00"
+        fecha_hora_fin:
+          type: string
+          example: "2026-10-15T20:00:00.000000-03:00"
+        estado:
+          type: string
+          enum: [confirmada, cancelada, finalizada]
+          example: "confirmada"
+        precio_hora_aplicado:
+          type: integer
+          description: |-
+            Tarifa vigente al registrar la reserva, en centavos. No cambia aunque
+            despues se modifique el precio de la cancha
+          example: 1000000
+        total:
+          type: integer
+          description: "Cantidad de horas por la tarifa aplicada, en centavos"
+          example: 2000000
+
+    NuevaReserva:
+      type: object
+      description: "Datos requeridos para crear una reserva"
+      required:
+        - id_socio
+        - id_cancha
+        - fecha_hora_inicio
+        - fecha_hora_fin
+      properties:
+        id_socio:
+          type: integer
+          minimum: 1
+          example: 1
+        id_cancha:
+          type: integer
+          minimum: 1
+          example: 2
+        fecha_hora_inicio:
+          type: string
+          description: "Hora en punto, posterior al momento actual"
+          example: "2026-10-15T18:00:00.000000-03:00"
+        fecha_hora_fin:
+          type: string
+          description: "Hora en punto, entre una y tres horas despues del inicio"
+          example: "2026-10-15T20:00:00.000000-03:00"
+
+    CambioEstado:
+      type: object
+      description: "Nuevo estado solicitado para la reserva"
+      required:
+        - estado
+      properties:
+        estado:
+          type: string
+          enum: [confirmada, cancelada, finalizada]
+          example: "cancelada"
+
+    ReservasPaginadas:
+      type: object
+      description: "Listado de reservas con paginacion y enlaces de navegacion"
+      properties:
+        reservas:
+          type: array
+          items:
+            $ref: '#/components/schemas/Reserva'
         _limit:
           type: integer
           example: 10

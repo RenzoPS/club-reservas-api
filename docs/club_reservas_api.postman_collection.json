@@ -1,0 +1,1907 @@
+{
+  "info": {
+    "name": "Club Reservas API",
+    "description": "Pruebas minimas exigidas por la seccion 8 del enunciado.\n\nRequiere la API corriendo en {{baseUrl}} y la base con los deportes cargados (init_db.sql).\nCada carpeta cubre uno de los puntos de la seccion 8.\n\nSe ejecuta con el Collection Runner, en orden.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Fechas futuras, en horas en punto, con desplazamiento fijo GMT-3.",
+          "function iso(dias, hora) {",
+          "  const d = new Date();",
+          "  d.setDate(d.getDate() + dias);",
+          "  const p = n => String(n).padStart(2, '0');",
+          "  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(hora)}:00:00.000000-03:00`;",
+          "}",
+          "function fecha(dias) {",
+          "  const d = new Date();",
+          "  d.setDate(d.getDate() + dias);",
+          "  const p = n => String(n).padStart(2, '0');",
+          "  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;",
+          "}",
+          "pm.collectionVariables.set('fechaManana', fecha(1));",
+          "[16,17,18,19,20,21,22,7,9].forEach(h => pm.collectionVariables.set('h'+h, iso(1, h)));",
+          "pm.collectionVariables.set('h24', iso(2, 1));",
+          "pm.collectionVariables.set('hPasado', iso(-3, 18));",
+          "pm.collectionVariables.set('h1830', iso(1, 18).replace('T18:00', 'T18:30'));",
+          "pm.collectionVariables.set('h2030', iso(1, 20).replace('T20:00', 'T20:30'));",
+          "pm.collectionVariables.set('sufijo', Date.now());"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/club_reservas_api"
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Preparacion",
+      "item": [
+        {
+          "name": "Listar deportes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/deportes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "deportes"
+              ],
+              "query": []
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('devuelve deportes precargados', () => pm.expect(pm.response.json().deportes).to.be.an('array').that.is.not.empty);",
+                  "pm.test('no lleva paginacion', () => pm.expect(pm.response.json()).to.not.have.property('_links'));",
+                  "pm.collectionVariables.set('idDeporte', pm.response.json().deportes[0].id_deporte);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear cancha A",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/canchas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "canchas"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Cancha A {{sufijo}}\",\n  \"id_deporte\": \"{{idDeporte}}\",\n  \"precio_hora\": 1000000\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const c = pm.response.json();",
+                  "pm.test('techada por defecto false', () => pm.expect(c.techada).to.eql(false));",
+                  "pm.test('activa por defecto true', () => pm.expect(c.activa).to.eql(true));",
+                  "pm.collectionVariables.set('canchaA', c.id_cancha);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear cancha B",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/canchas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "canchas"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Cancha B {{sufijo}}\",\n  \"id_deporte\": \"{{idDeporte}}\",\n  \"precio_hora\": 800000\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('canchaB', pm.response.json().id_cancha);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear cancha inactiva",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/canchas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "canchas"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Cancha Inactiva {{sufijo}}\",\n  \"id_deporte\": \"{{idDeporte}}\",\n  \"precio_hora\": 900000,\n  \"activa\": false\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('canchaInactiva', pm.response.json().id_cancha);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear cancha a eliminar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/canchas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "canchas"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Cancha Borrable {{sufijo}}\",\n  \"id_deporte\": \"{{idDeporte}}\",\n  \"precio_hora\": 700000\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('canchaBorrable', pm.response.json().id_cancha);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear socio A",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/socios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "socios"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Socio A\",\n  \"email\": \"socio.a.{{sufijo}}@example.com\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const s = pm.response.json();",
+                  "pm.test('el servidor asigna activo true', () => pm.expect(s.activo).to.eql(true));",
+                  "pm.collectionVariables.set('socioA', s.id_socio);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear socio B",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/socios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "socios"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Socio B\",\n  \"email\": \"socio.b.{{sufijo}}@example.com\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('socioB', pm.response.json().id_socio);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear socio inactivo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/socios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "socios"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Socio Inactivo\",\n  \"email\": \"socio.i.{{sufijo}}@example.com\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('socioInactivo', pm.response.json().id_socio);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Desactivar el socio inactivo",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/socios/{{socioInactivo}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "socios",
+                "{{socioInactivo}}"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activo\": false\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('queda inactivo', () => pm.expect(pm.response.json().activo).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Crea las entidades que usan el resto de las carpetas."
+    },
+    {
+      "name": "1. Creacion valida, importe y tarifa historica",
+      "item": [
+        {
+          "name": "Crear reserva 18-20",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_socio\": \"{{socioA}}\",\n  \"id_cancha\": \"{{canchaA}}\",\n  \"fecha_hora_inicio\": \"{{h18}}\",\n  \"fecha_hora_fin\": \"{{h20}}\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "pm.test('estado inicial confirmada', () => pm.expect(r.estado).to.eql('confirmada'));",
+                  "pm.test('tarifa igual al precio de la cancha', () => pm.expect(r.precio_hora_aplicado).to.eql(1000000));",
+                  "pm.test('total = 2 horas x tarifa', () => pm.expect(r.total).to.eql(2000000));",
+                  "pm.test('fecha con desplazamiento -03:00', () => pm.expect(r.fecha_hora_inicio).to.include('-03:00'));",
+                  "pm.test('fecha con 6 digitos de fraccion', () => pm.expect(r.fecha_hora_inicio).to.include('.000000'));",
+                  "pm.collectionVariables.set('reservaA', r.id_reserva);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cambiar el precio de la cancha",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/canchas/{{canchaA}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "canchas",
+                "{{canchaA}}"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"precio_hora\": 5000000\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('el precio cambio', () => pm.expect(pm.response.json().precio_hora).to.eql(5000000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "La reserva conserva la tarifa historica",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservas/{{reservaA}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas",
+                "{{reservaA}}"
+              ],
+              "query": []
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('la tarifa aplicada no cambio', () => pm.expect(r.precio_hora_aplicado).to.eql(1000000));",
+                  "pm.test('el total no cambio', () => pm.expect(r.total).to.eql(2000000));"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Seccion 8: creacion valida, calculo del importe y conservacion de la tarifa historica."
+    },
+    {
+      "name": "2. Superposiciones",
+      "item": [
+        {
+          "name": "Intervalo identico 18-20 (rechaza)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_socio\": \"{{socioB}}\",\n  \"id_cancha\": \"{{canchaA}}\",\n  \"fecha_hora_inicio\": \"{{h18}}\",\n  \"fecha_hora_fin\": \"{{h20}}\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', () => pm.response.to.have.status(409));",
+                  "pm.test('superposicion de cancha', () => pm.expect(pm.response.json().errors[0].code).to.include('superpuesta'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Intervalo contenido 19-20 (rechaza)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_socio\": \"{{socioB}}\",\n  \"id_cancha\": \"{{canchaA}}\",\n  \"fecha_hora_inicio\": \"{{h19}}\",\n  \"fecha_hora_fin\": \"{{h20}}\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Intervalo contenedor 18-21 (rechaza)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_socio\": \"{{socioB}}\",\n  \"id_cancha\": \"{{canchaA}}\",\n  \"fecha_hora_inicio\": \"{{h18}}\",\n  \"fecha_hora_fin\": \"{{h21}}\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Solapamiento parcial 19-21 (rechaza)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_socio\": \"{{socioB}}\",\n  \"id_cancha\": \"{{canchaA}}\",\n  \"fecha_hora_inicio\": \"{{h19}}\",\n  \"fecha_hora_fin\": \"{{h21}}\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mismo socio en otra cancha 19-21 (rechaza)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_socio\": \"{{socioA}}\",\n  \"id_cancha\": \"{{canchaB}}\",\n  \"fecha_hora_inicio\": \"{{h19}}\",\n  \"fecha_hora_fin\": \"{{h21}}\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', () => pm.response.to.have.status(409));",
+                  "pm.test('superposicion de socio', () => pm.expect(pm.response.json().errors[0].code).to.include('socio'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consecutiva 20-21 (acepta)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_socio\": \"{{socioB}}\",\n  \"id_cancha\": \"{{canchaA}}\",\n  \"fecha_hora_inicio\": \"{{h20}}\",\n  \"fecha_hora_fin\": \"{{h21}}\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('reservaConsecutiva', pm.response.json().id_reserva);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consecutiva previa 16-18 (acepta)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_socio\": \"{{socioB}}\",\n  \"id_cancha\": \"{{canchaB}}\",\n  \"fecha_hora_inicio\": \"{{h16}}\",\n  \"fecha_hora_fin\": \"{{h18}}\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Seccion 8: rechazo de superposiciones para la cancha y para el socio, incluidos intervalos iguales, contenidos y contenedores; aceptacion de consecutivas."
+    },
+    {
+      "name": "3. Rechazos de datos invalidos",
+      "item": [
+        {
+          "name": "Duracion de 4 horas",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_socio\": \"{{socioB}}\",\n  \"id_cancha\": \"{{canchaB}}\",\n  \"fecha_hora_inicio\": \"{{h18}}\",\n  \"fecha_hora_fin\": \"{{h22}}\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Horario que no es en punto",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_socio\": \"{{socioB}}\",\n  \"id_cancha\": \"{{canchaB}}\",\n  \"fecha_hora_inicio\": \"{{h1830}}\",\n  \"fecha_hora_fin\": \"{{h2030}}\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Antes de la apertura (07-09)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_socio\": \"{{socioB}}\",\n  \"id_cancha\": \"{{canchaB}}\",\n  \"fecha_hora_inicio\": \"{{h7}}\",\n  \"fecha_hora_fin\": \"{{h9}}\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Atraviesa la medianoche",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_socio\": \"{{socioB}}\",\n  \"id_cancha\": \"{{canchaB}}\",\n  \"fecha_hora_inicio\": \"{{h22}}\",\n  \"fecha_hora_fin\": \"{{h24}}\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reserva en el pasado",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_socio\": \"{{socioB}}\",\n  \"id_cancha\": \"{{canchaB}}\",\n  \"fecha_hora_inicio\": \"{{hPasado}}\",\n  \"fecha_hora_fin\": \"{{h20}}\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Socio inexistente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_socio\": 999999,\n  \"id_cancha\": \"{{canchaB}}\",\n  \"fecha_hora_inicio\": \"{{h21}}\",\n  \"fecha_hora_fin\": \"{{h22}}\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancha inexistente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_socio\": \"{{socioB}}\",\n  \"id_cancha\": 999999,\n  \"fecha_hora_inicio\": \"{{h21}}\",\n  \"fecha_hora_fin\": \"{{h22}}\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Socio inactivo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_socio\": \"{{socioInactivo}}\",\n  \"id_cancha\": \"{{canchaB}}\",\n  \"fecha_hora_inicio\": \"{{h21}}\",\n  \"fecha_hora_fin\": \"{{h22}}\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancha inactiva",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_socio\": \"{{socioB}}\",\n  \"id_cancha\": \"{{canchaInactiva}}\",\n  \"fecha_hora_inicio\": \"{{h21}}\",\n  \"fecha_hora_fin\": \"{{h22}}\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cuerpo con campo desconocido",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_socio\": \"{{socioB}}\",\n  \"id_cancha\": \"{{canchaB}}\",\n  \"fecha_hora_inicio\": \"{{h21}}\",\n  \"fecha_hora_fin\": \"{{h22}}\",\n  \"estado\": \"confirmada\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ninguno de los rechazos dejo registros",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservas?id_cancha={{canchaB}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas"
+              ],
+              "query": [
+                {
+                  "key": "id_cancha",
+                  "value": "{{canchaB}}"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const rs = pm.response.json().reservas;",
+                  "pm.test('solo quedo la reserva valida 16-18', () => pm.expect(rs.length).to.eql(1));"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Seccion 8: rechazo de horarios invalidos, reservas no futuras, referencias inexistentes y entidades inactivas, sin guardar registros incompletos."
+    },
+    {
+      "name": "4. Transiciones de estado",
+      "item": [
+        {
+          "name": "Repetir el estado actual (exito sin cambios)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservas/{{reservaA}}/estado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas",
+                "{{reservaA}}",
+                "estado"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"confirmada\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('sigue confirmada', () => pm.expect(pm.response.json().estado).to.eql('confirmada'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Finalizar antes del horario de fin",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservas/{{reservaA}}/estado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas",
+                "{{reservaA}}",
+                "estado"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"finalizada\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Estado desconocido",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservas/{{reservaA}}/estado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas",
+                "{{reservaA}}",
+                "estado"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"pendiente\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancelar antes del inicio",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservas/{{reservaA}}/estado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas",
+                "{{reservaA}}",
+                "estado"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"cancelada\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('queda cancelada', () => pm.expect(pm.response.json().estado).to.eql('cancelada'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reactivar una cancelada",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservas/{{reservaA}}/estado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas",
+                "{{reservaA}}",
+                "estado"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"confirmada\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "La cancelacion libero el horario",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/canchas/disponibles?fecha={{fechaManana}}&hora_inicio=18:00&hora_fin=20:00",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "canchas",
+                "disponibles"
+              ],
+              "query": [
+                {
+                  "key": "fecha",
+                  "value": "{{fechaManana}}"
+                },
+                {
+                  "key": "hora_inicio",
+                  "value": "18:00"
+                },
+                {
+                  "key": "hora_fin",
+                  "value": "20:00"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const ids = pm.response.json().canchas.map(c => c.id_cancha);",
+                  "pm.test('la cancha vuelve a estar libre 18-20', () => pm.expect(ids).to.include(Number(pm.collectionVariables.get('canchaA'))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "La reserva cancelada sigue existiendo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservas/{{reservaA}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas",
+                "{{reservaA}}"
+              ],
+              "query": []
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('el registro no se elimino', () => pm.expect(pm.response.json().estado).to.eql('cancelada'));"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Seccion 8: cancelacion que libera el horario, finalizacion, transiciones rechazadas y repeticion del estado actual."
+    },
+    {
+      "name": "5. Eliminacion de canchas y filtros con paginacion",
+      "item": [
+        {
+          "name": "Eliminar cancha con reservas",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/canchas/{{canchaA}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "canchas",
+                "{{canchaA}}"
+              ],
+              "query": []
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', () => pm.response.to.have.status(409));",
+                  "pm.test('codigo de cancha con reservas', () => pm.expect(pm.response.json().errors[0].code).to.include('reservas'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Eliminar cancha sin reservas",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/canchas/{{canchaBorrable}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "canchas",
+                "{{canchaBorrable}}"
+              ],
+              "query": []
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 204', () => pm.response.to.have.status(204));",
+                  "pm.test('sin cuerpo', () => pm.expect(pm.response.text()).to.be.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "La cancha eliminada ya no existe",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/canchas/{{canchaBorrable}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "canchas",
+                "{{canchaBorrable}}"
+              ],
+              "query": []
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filtros combinados con paginacion",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/canchas?id_deporte={{idDeporte}}&activa=true&_limit=2&_offset=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "canchas"
+              ],
+              "query": [
+                {
+                  "key": "id_deporte",
+                  "value": "{{idDeporte}}"
+                },
+                {
+                  "key": "activa",
+                  "value": "true"
+                },
+                {
+                  "key": "_limit",
+                  "value": "2"
+                },
+                {
+                  "key": "_offset",
+                  "value": "0"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json();",
+                  "pm.test('respeta _limit', () => pm.expect(d.canchas.length).to.be.at.most(2));",
+                  "pm.test('devuelve _limit y _offset', () => { pm.expect(d._limit).to.eql(2); pm.expect(d._offset).to.eql(0); });",
+                  "pm.test('incluye los 4 enlaces HATEOAS', () => pm.expect(d._links).to.have.all.keys('_first','_prev','_next','_last'));",
+                  "pm.test('todas activas y del deporte filtrado', () => d.canchas.forEach(c => { pm.expect(c.activa).to.eql(true); pm.expect(String(c.id_deporte)).to.eql(String(pm.collectionVariables.get('idDeporte'))); }));",
+                  "pm.test('ordenadas por id ascendente', () => { const ids = d.canchas.map(c => c.id_cancha); pm.expect(ids).to.eql([...ids].sort((a,b) => a-b)); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Busqueda parcial sin distinguir mayusculas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/socios?nombre=SOCIO&_limit=5",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "socios"
+              ],
+              "query": [
+                {
+                  "key": "nombre",
+                  "value": "SOCIO"
+                },
+                {
+                  "key": "_limit",
+                  "value": "5"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('encuentra socios', () => pm.expect(pm.response.json().socios).to.be.an('array').that.is.not.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "_limit fuera de rango",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/canchas?_limit=101",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "canchas"
+              ],
+              "query": [
+                {
+                  "key": "_limit",
+                  "value": "101"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "_offset negativo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/canchas?_offset=-1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "canchas"
+              ],
+              "query": [
+                {
+                  "key": "_offset",
+                  "value": "-1"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filtro booleano invalido",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/canchas?activa=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "canchas"
+              ],
+              "query": [
+                {
+                  "key": "activa",
+                  "value": "1"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Parametro desconocido",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/canchas?color=rojo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "canchas"
+              ],
+              "query": [
+                {
+                  "key": "color",
+                  "value": "rojo"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Correo duplicado",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/socios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "socios"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Repetido\",\n  \"email\": \"socio.a.{{sufijo}}@example.com\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Correo duplicado de un socio inactivo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/socios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "socios"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Repetido\",\n  \"email\": \"socio.i.{{sufijo}}@example.com\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Seccion 8: restriccion de eliminacion de canchas con reservas y combinacion de filtros con paginacion."
+    }
+  ]
+}
