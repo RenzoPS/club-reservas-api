@@ -23,6 +23,29 @@ servers:
 # =============================================================
 paths:
 
+  /deportes:
+    get:
+      summary: "Listar los deportes precargados"
+      description: |-
+        Los deportes se cargan mediante el script inicial y no admiten alta,
+        modificacion ni eliminacion. Esta consulta no lleva paginacion.
+      tags:
+        - Deportes
+      responses:
+        '200':
+          description: "Listado de deportes"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deportes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Deporte'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   /canchas:
     get:
       summary: "Listar canchas con paginacion"
@@ -251,6 +274,18 @@ paths:
 
 components:
   schemas:
+
+    # ---------- Deportes ----------
+    Deporte:
+      type: object
+      description: "Deporte que se practica en una cancha del club"
+      properties:
+        id_deporte:
+          type: integer
+          example: 1
+        nombre:
+          type: string
+          example: "Futbol"
 
     # ---------- Canchas ----------
     Cancha:
