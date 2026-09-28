@@ -68,3 +68,6 @@ CREATE TABLE club.reservas
 	CONSTRAINT ck_reserva_precio_positivo CHECK (precio_hora_aplicado > 0),
 	CONSTRAINT ck_reserva_total_positivo CHECK (total > 0)
 	);
+
+INSERT INTO club.deportes (nombre)
+values ('Futbol'), ('Tenis'), ('Padel');
