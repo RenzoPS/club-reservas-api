@@ -102,6 +102,53 @@ docker compose logs -f mysql      # esperar la linea "ready for connections"
 >
 > Esto borra todos los datos de la base y los vuelve a cargar desde el script.
 
+### Datos de prueba
+
+`init_db.sql` crea las tablas y carga los deportes, que son obligatorios. Los
+datos ficticios de socios y canchas van en un script aparte, que **no** se
+ejecuta con el contenedor: se corre una sola vez, cuando se quieren datos con
+los que probar.
+
+**Con Docker**
+
+```bash
+docker compose exec -T mysql mysql -uroot -proot club < db/datos_prueba.sql
+```
+
+El `-T` desactiva el TTY; sin eso la redireccion no llega al `mysql` del
+contenedor.
+
+**Sin Docker**
+
+```bash
+mysql -u root -p club < db/datos_prueba.sql
+```
+
+**Windows PowerShell**
+
+```powershell
+Get-Content db\datos_prueba.sql | docker compose exec -T mysql mysql -uroot -proot club
+```
+
+Carga 10 socios y 10 canchas con casos variados para ejercitar los filtros:
+canchas activas e inactivas, techadas y descubiertas, de los tres deportes, y
+socios activos e inactivos.
+
+> **Se corre una sola vez.** Una segunda ejecucion duplica las canchas y falla
+> en los socios por el `UNIQUE` del email. Para volver al estado inicial:
+>
+> ```bash
+> docker compose down -v && docker compose up -d
+> ```
+>
+> Eso recrea el esquema y los deportes. Los datos de prueba se vuelven a cargar
+> con el comando de arriba.
+
+El script no incluye reservas. El enunciado solo admite reservas con fecha de
+inicio futura, y cualquier fecha fija en un script quedaria en el pasado al poco
+tiempo, invalidando las pruebas de disponibilidad. Las reservas se crean desde
+la API con `POST /reservas`.
+
 ### Sin Docker
 
 Si tenes MySQL 8 instalado localmente, el script lo corres a mano:
@@ -167,7 +214,18 @@ _Completar._
 
 ## Supuestos adoptados
 
-_Completar._
+- Todas las fechas y horas se interpretan en GMT-3, sin conversion de zona
+  horaria. Se almacenan como `DATETIME` y el desplazamiento `-03:00` se
+  reconstruye al serializar la respuesta.
+- Los importes se manejan como enteros en centavos: `1000000` es $10.000,00.
+- La baja de socios y canchas es logica (`activo` / `activa`). La unica
+  eliminacion fisica es la de canchas sin reservas asociadas.
+- La unicidad del email de socios aplica tambien contra socios inactivos.
+- Los deportes se cargan en `init_db.sql` y no tienen ABM, segun el enunciado.
+- Los datos ficticios de socios y canchas se cargan aparte, con
+  `db/datos_prueba.sql`, para que levantar la base no dependa de ellos.
+- El script de datos de prueba no incluye reservas: al admitirse unicamente
+  reservas futuras, cualquier fecha fija quedaria vencida al poco tiempo.
 
 ## Como trabajar en este repo
 
